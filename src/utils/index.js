@@ -274,7 +274,14 @@ export const generateToken = (user, needVeryShortTokenLife) => {
 
     // NOTE: needVerifyTokenLife is used for testing purposes
     // to generate a token with a very short life
-    return jwt.sign(payload, secretKey, { expiresIn: needVeryShortTokenLife ? '5h' : '5h' });
+    const token = jwt.sign(payload, secretKey, { expiresIn: needVeryShortTokenLife ? '5h' : '5h' });
+    if (process.env.DEBUG_AUTH === 'true') {
+        try {
+            console.log('[AUTH DEBUG] generateToken payload:', JSON.stringify({ id: payload.id, email: payload.email, role: payload.role, organization_id: payload.organization_id }));
+            console.log('[AUTH DEBUG] generated token (prefix):', token.slice(0, 32) + '...');
+        } catch (e) { /* ignore logging errors */ }
+    }
+    return token;
 }
 
 export const generateRefreshToken = (user) => {
@@ -287,7 +294,14 @@ export const generateRefreshToken = (user) => {
       organization_id: user.organization_id
   }
 
-  return jwt.sign(payload, refreshSecretKey, { expiresIn: '180d' });
+  const token = jwt.sign(payload, refreshSecretKey, { expiresIn: '180d' });
+  if (process.env.DEBUG_AUTH === 'true') {
+      try {
+          console.log('[AUTH DEBUG] generateRefreshToken payload:', JSON.stringify({ id: payload.id, email: payload.email, role: payload.role }));
+          console.log('[AUTH DEBUG] generated refresh token (prefix):', token.slice(0, 32) + '...');
+      } catch (e) { /* ignore logging errors */ }
+  }
+  return token;
 }
 
 export const generateActivationKey = (user) => {

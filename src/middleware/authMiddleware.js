@@ -36,8 +36,15 @@ export const authenticateToken = async (req, res, next) => {
         // Verify token synchronously to get decoded payload
         let decoded;
         try {
+            if (process.env.DEBUG_AUTH === 'true') {
+                console.log('[AUTH DEBUG] authenticateToken verifying token (prefix):', token?.slice(0,32) + '...');
+            }
             decoded = jwt.verify(token, secretKey);
+            if (process.env.DEBUG_AUTH === 'true') {
+                try { console.log('[AUTH DEBUG] authenticateToken decoded payload:', JSON.stringify({ id: decoded.id, email: decoded.email, role: decoded.role })); } catch (e) {}
+            }
         } catch (verr) {
+            if (process.env.DEBUG_AUTH === 'true') console.warn('[AUTH DEBUG] jwt.verify failed in authenticateToken:', verr && verr.message);
             return res.status(403).json({ message: "Forbidden: Invalid token", statusCode: 403, status: "Unauthorized" });
         }
 
@@ -130,10 +137,13 @@ export const verifyAdmin = async (req, res, next) => {
             const cookieToken = (req.cookies && req.cookies.jwt) ? req.cookies.jwt : null;
             logger.debug('[verifyAdmin] attempting jwt.verify, token source:', cookieToken ? 'cookie' : 'header');
             // Use synchronous verify to get decoded payload
+            if (process.env.DEBUG_AUTH === 'true') console.log('[AUTH DEBUG] verifyAdmin verifying token (prefix):', token?.slice(0,32) + '...');
             const decoded = jwt.verify(token, secretKey);
             // attach decoded for later use
             req._decoded_jwt = decoded;
-
+            if (process.env.DEBUG_AUTH === 'true') {
+                try { console.log('[AUTH DEBUG] verifyAdmin decoded payload:', JSON.stringify({ id: decoded.id, email: decoded.email, role: decoded.role })); } catch (e) {}
+            }
             console.log("Auth check for user role:", decoded.role);
 
             // Check if user role is "admin" or "clientadmin"
@@ -278,7 +288,14 @@ export const verifyForgetToken = async (req, res, next) => {
 }
 
 export const verifyToken = (token) => {
-    return jwt.verify(token, secretKey);
+    if (process.env.DEBUG_AUTH === 'true') {
+        try { console.log('[AUTH DEBUG] verifyToken verifying token (prefix):', token?.slice(0,32) + '...'); } catch (e) {}
+    }
+    const decoded = jwt.verify(token, secretKey);
+    if (process.env.DEBUG_AUTH === 'true') {
+        try { console.log('[AUTH DEBUG] verifyToken decoded payload:', JSON.stringify({ id: decoded.id, email: decoded.email, role: decoded.role })); } catch (e) {}
+    }
+    return decoded;
 }
 
 // Middleware to verify if a user has a valid token AND is a tenant with portal access
@@ -372,7 +389,14 @@ export const verifyTenant = async (req, res, next) => {
 };
 
 export const verifyRefreshToken = (token) => {
-    return jwt.verify(token, refreshSecretKey);
+    if (process.env.DEBUG_AUTH === 'true') {
+        try { console.log('[AUTH DEBUG] verifyRefreshToken verifying token (prefix):', token?.slice(0,32) + '...'); } catch (e) {}
+    }
+    const decoded = jwt.verify(token, refreshSecretKey);
+    if (process.env.DEBUG_AUTH === 'true') {
+        try { console.log('[AUTH DEBUG] verifyRefreshToken decoded payload:', JSON.stringify({ id: decoded.id, email: decoded.email, role: decoded.role })); } catch (e) {}
+    }
+    return decoded;
 }
 
 export const extractForgetToken = (token) => {
