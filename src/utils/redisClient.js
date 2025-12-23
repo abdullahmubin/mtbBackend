@@ -21,14 +21,25 @@ class RedisManager {
 
     createClient() {
         // Debug: Print Redis connection info
-        const debugHost = process.env.REDIS_HOST;
-        const debugPort = process.env.REDIS_PORT;
-        console.log(`[DEBUG] Redis will try to connect to host: ${debugHost}, port: ${debugPort}`);
+        const debugHost = process.env.REDIS_HOST || 'localhost';
+        const debugPort = process.env.REDIS_PORT || 6379;
+        const redisEnabled = process.env.REDIS_ENABLED !== 'false';
+        
+        console.log(`[DEBUG] Redis configuration:
+  - Enabled: ${redisEnabled}
+  - Host: ${debugHost}
+  - Port: ${debugPort}
+  - Password: ${process.env.REDIS_PASSWORD ? '***' : 'none'}`);
+
+        if (!redisEnabled) {
+            logger.info('Redis is disabled via REDIS_ENABLED=false');
+            return;
+        }
 
         const config = {
             socket: {
-                host: process.env.REDIS_HOST,
-                port: parseInt(process.env.REDIS_PORT) || 6379,
+                host: debugHost,
+                port: parseInt(debugPort),
                 reconnectStrategy: (retries) => {
                     if (retries > this.maxRetries) {
                         logger.error('Redis max retries exceeded');
@@ -75,6 +86,12 @@ class RedisManager {
     async connect() {
         try {
             this.createClient();
+            
+            if (!this.client) {
+                logger.warn('Redis client not created (disabled or configuration issue)');
+                return false;
+            }
+            
             await this.client.connect();
             logger.info('Redis connected successfully');
             return true;
@@ -149,9 +166,13 @@ const redisManager = new RedisManager();
 
 const initializeRedis = async () => {
     try {
-        await redisManager.connect();
+        const connected = await redisManager.connect();
+        if (!connected) {
+            logger.warn('Application starting without Redis');
+        }
     } catch (error) {
         logger.error('Failed to initialize Redis', error);
+        logger.warn('Application will continue without Redis - some features may be limited');
         // Don't throw error - application can run without Redis
     }
 };
@@ -165,4 +186,5 @@ process.on('SIGTERM', async () => {
     await redisManager.disconnect();
 });
 
+// Export the client - may be null if Redis is disabled or connection failed
 export default redisManager.getClient();
