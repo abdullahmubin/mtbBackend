@@ -10,6 +10,10 @@ import configure from "./src/controllers/index.js";
 import { handleErrors } from "./src/utils/errors/errorHandler.js";
 import logger from "./src/utils/logger.js";
 import errorLogService from './src/services/errorLogService.js';
+// Swagger
+import swaggerUi from 'swagger-ui-express';
+import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerOptions from './swaggerDef.js';
 
 // Import security middleware
 import { 
@@ -154,46 +158,14 @@ app.get('/api/health', async (req, res) => {
 });
 
 /**
- * API Documentation Endpoint
+ * Swagger UI and OpenAPI JSON
  */
-app.get('/api/docs', (req, res) => {
-    res.json({
-        message: 'Receipt Generator API Documentation',
-        version: '1.0.0',
-        endpoints: {
-            auth: {
-                'POST /api/auth/login': 'User login',
-                'POST /api/auth/register': 'User registration',
-                'POST /api/auth/refresh': 'Refresh token',
-                'POST /api/auth/logout': 'User logout',
-                'POST /api/auth/forget-password': 'Forget password',
-                'POST /api/auth/reset-password': 'Reset password'
-            },
-            receipts: {
-                'GET /api/receipts': 'Get all receipts',
-                'GET /api/receipts/:id': 'Get receipt by ID',
-                'POST /api/receipts': 'Create new receipt',
-                'PUT /api/receipts/:id': 'Update receipt',
-                'DELETE /api/receipts/:id': 'Delete receipt'
-            },
-            users: {
-                'GET /api/users': 'Get all users (admin only)',
-                'GET /api/users/:id': 'Get user by ID',
-                'PUT /api/users/:id': 'Update user',
-                'DELETE /api/users/:id': 'Delete user'
-            },
-            dashboard: {
-                'GET /api/dashboard/stats': 'Get dashboard statistics',
-                'GET /api/dashboard/analytics': 'Get analytics data'
-            }
-        },
-        authentication: 'Bearer token required for protected routes',
-        rateLimiting: {
-            general: '100 requests per 15 minutes',
-            auth: '5 requests per 15 minutes',
-            upload: '10 requests per hour'
-        }
-    });
+const swaggerSpec = swaggerJSDoc(swaggerOptions);
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { explorer: true }));
+app.get('/api/openapi.json', (req, res) => res.json(swaggerSpec));
+// Keep the old JSON summary endpoint (moved)
+app.get('/api/docs-summary', (req, res) => {
+    res.json({ message: 'See Swagger UI at /api/docs', version: process.env.npm_package_version || '1.0.0' });
 });
 
 /**
