@@ -1,0 +1,6 @@
+id,first_name,last_name,email,phone,building_id,floor_id,suite_id,lease_start_date,lease_end_date,status
+tenant_1,John,Doe,john.doe@example.com,555-0100,B001,1,101,2024-01-01,2025-01-01,Active
+tenant_2,Jane,Smith,jane.smith@example.com,555-0101,B001,2,201,2023-06-15,2024-06-14,Expiring Soon
+tenant_3,Ali,Ahmed,ali.ahmed@example.com,555-0102,B002,1,102,2022-09-01,2026-08-31,Active
+tenant_4,Maria,Gonzalez,maria.g@example.com,555-0103,B003,3,305,2024-03-01,2024-09-01,Vacated
+tenant_5,Chen,Wang,chen.wang@example.com,555-0104,B002,2,204,2024-07-01,2025-07-01,Pending
