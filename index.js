@@ -40,6 +40,14 @@ const port = Number(process.env.PORT) || (isLocalhost ? 3030 : 3031);
 // Create Express app
 const app = express();
 
+// If running behind a proxy (Dokploy, Heroku, nginx, etc.), enable trust proxy
+// so `req.ip` and rate-limiter see the real client IP from `X-Forwarded-For`.
+if (process.env.TRUST_PROXY === 'true' || process.env.NODE_ENV === 'production') {
+    // when behind a single proxy set to 1; you can set a number or a list as needed
+    app.set('trust proxy', 1);
+    console.log('[DEBUG] Express trust proxy enabled');
+}
+
 /**
  * Security Middleware Setup
  */
