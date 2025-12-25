@@ -38,9 +38,6 @@ RUN npm install
 # Copy application files
 COPY . .
 
-# Copy .env file if exists (optional, remove if not needed)
-COPY .env .env
-
 # Verify Chromium installation
 RUN chromium --version || echo "Chromium not found"
 
