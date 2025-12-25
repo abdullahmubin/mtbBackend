@@ -196,6 +196,13 @@ const handleCheckAlreadyExistUsernameEmail = async (req, res, next) => {
 export const createCheckoutSession = async (req, res) => {
     try {
         const { price_id, success_url, cancel_url } = req.body || {};
+        logger.info('Paddle checkout request', {
+            price_id,
+            success_url,
+            cancel_url,
+            user_id: req.user?.id,
+            origin: req.headers.origin
+        });
         if (!price_id) {
             return res.status(400).json({ message: 'price_id is required' });
         }
@@ -222,7 +229,11 @@ export const createCheckoutSession = async (req, res) => {
             ...priceVars.map(k => process.env[k]),
             ...vitePriceVars.map(k => process.env[k])
         ].filter(Boolean));
-        console.log('allowedPriceIds:', allowedPriceIds);
+        logger.info('Paddle price whitelist check', {
+            requested_price_id: price_id,
+            allowed: allowedPriceIds.has(price_id),
+            allowed_count: allowedPriceIds.size
+        });
         if (!allowedPriceIds.has(price_id)) {
             return res.status(400).json({ message: 'Invalid price_id' });
         }
@@ -246,7 +257,12 @@ export const createCheckoutSession = async (req, res) => {
 
         const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
         const originFromReq = req.headers.origin;
-        console.log('originFromReq: '+ originFromReq)
+        logger.info('Paddle origin resolution', {
+            env_origins: envOrigins,
+            allowed_origins: allowedOrigins,
+            origin_from_request: originFromReq,
+            frontend_base_env: process.env.FRONTEND_BASE_URL
+        });
         // Prefer the actual request origin in dev to avoid https localhost issues
         let frontendBase = allowedOrigins.includes(originFromReq) ? originFromReq : null;
         if (!frontendBase && process.env.FRONTEND_BASE_URL && allowedOrigins.includes(process.env.FRONTEND_BASE_URL)) {
@@ -264,10 +280,16 @@ export const createCheckoutSession = async (req, res) => {
             return `${frontendBase}${fallbackPath}`;
         };
 
-    const successUrl = safeUrl(success_url, '/dashboard');
+        const successUrl = safeUrl(success_url, '/dashboard');
         const cancelUrl = safeUrl(cancel_url, '/pricing');
+        logger.info('Paddle redirect URLs resolved', {
+            frontend_base: frontendBase,
+            success_url: successUrl,
+            cancel_url: cancelUrl
+        });
 
         const apiBase = process.env.PADDLE_API_BASE || 'https://sandbox-api.paddle.com';
+        logger.info('Paddle API target', { api_base: apiBase, endpoint: `${apiBase}/transactions` });
         // Derive customer email from the authenticated token (email or userName)
         const customerEmail = (req.user?.email || req.user?.userName || req.user?.username || '').trim();
         const payload = {
@@ -283,10 +305,12 @@ export const createCheckoutSession = async (req, res) => {
             },
             ...(process.env.PADDLE_PAYMENT_METHOD_CONFIGURATION_ID ? { payment_method_configuration_id: process.env.PADDLE_PAYMENT_METHOD_CONFIGURATION_ID } : {})
         };
-
-        console.log('process.env.PADDLE_VENDOR_AUTH_CODE:', process.env.PADDLE_VENDOR_AUTH_CODE);
-        console.log('payload:', payload);
-        console.log('apiBase:', apiBase);
+        logger.info('Paddle transaction payload', {
+            items_count: payload.items?.length,
+            has_customer_email: Boolean(customerEmail),
+            custom_data_keys: Object.keys(payload.custom_data || {}),
+            has_payment_method_configuration: Boolean(process.env.PADDLE_PAYMENT_METHOD_CONFIGURATION_ID)
+        });
 
         const response = await axios.post(
             `${apiBase}/transactions`,
@@ -294,6 +318,12 @@ export const createCheckoutSession = async (req, res) => {
             { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.PADDLE_VENDOR_AUTH_CODE}` } }
         );
 
+        logger.info('Paddle API response', {
+            http_status: response.status,
+            data_keys: Object.keys(response.data || {}),
+            transaction_id: response.data?.data?.id,
+            transaction_status: response.data?.data?.status
+        });
         const data = response.data?.data || response.data;
         res.status(201).send(wrappSuccessResult(201, {
             transaction_id: data?.id,
@@ -303,6 +333,11 @@ export const createCheckoutSession = async (req, res) => {
     } catch (error) {
         const apiMsg = error?.response?.data;
         const text = typeof apiMsg === 'string' ? apiMsg : (apiMsg?.error || apiMsg?.message || error?.message);
+        logger.error('Paddle API error', {
+            http_status: error?.response?.status,
+            message: text,
+            raw: apiMsg
+        });
         // Fallback redirect is disabled by default to prevent landing page jumps in app
         if (process.env.PADDLE_ENABLE_FALLBACK === '1' && text && /default payment link/i.test(text) && process.env.PADDLE_FALLBACK_CHECKOUT_URL) {
             logger.warn('Paddle requires a default payment link; using fallback URL (explicitly enabled)');

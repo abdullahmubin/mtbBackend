@@ -3,6 +3,7 @@ import { wrappSuccessResult, processPagination } from '../utils/index.js'
 import { deleteById, getAll, getById, getByIdServerSide, getFilterBy, save, update, updateWithCondition } from '../services/subscriptionsService.js';
 import { authenticateToken, verifyAdmin } from '../middleware/authMiddleware.js';
 import axios from 'axios';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -115,6 +116,11 @@ const postUpdateChangeCardHnadler = async (req, res, next) => {
 
         }
 
+        logger.info('Paddle request', {
+            action: 'update-payment-method-transaction',
+            endpoint: `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${completedSubId.sub_pdl_id}/update-payment-method-transaction`,
+            sub_id: completedSubId.sub_pdl_id
+        });
         const response = await axios.get(
             `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${completedSubId.sub_pdl_id}/update-payment-method-transaction`,
             // { "effective_from": "immediately" },
@@ -125,13 +131,23 @@ const postUpdateChangeCardHnadler = async (req, res, next) => {
                 }
             }
         );
+        logger.info('Paddle response', {
+            action: 'update-payment-method-transaction',
+            http_status: response.status,
+            data_status: response.data?.data?.status
+        });
         const result = response.data;
 
         // const updateREsult = await updateWithCondition({ customer_id: result.data.customer_id }, { cus_pdl_status: result.data.status, final_history: JSON.stringify(result.data), isActive: false });
 
         res.status(200).send(wrappSuccessResult(200, result));
     } catch (error) {
-
+        logger.error('Paddle error', {
+            action: 'update-payment-method-transaction',
+            http_status: error?.response?.status,
+            data: error?.response?.data,
+            message: error?.message
+        });
         return next(error, req, res)
 
     }
@@ -158,6 +174,12 @@ const postChangePlanHandler = async (req, res, next) => {
     
         }
     
+        logger.info('Paddle request', {
+            action: 'subscription-change-plan',
+            endpoint: `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${completedSubId.sub_pdl_id}`,
+            sub_id: completedSubId.sub_pdl_id,
+            items_count: Array.isArray(items) ? items.length : 0
+        });
         const response = await axios.patch(
             `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${completedSubId.sub_pdl_id}`,
             { "proration_billing_mode": "prorated_immediately", items}, //NOTE: full_next_billing_period Prorated amount isn't calculated. The customer is billed for the full amount on their next renewal.
@@ -169,6 +191,11 @@ const postChangePlanHandler = async (req, res, next) => {
                 }
             }
         );
+        logger.info('Paddle response', {
+            action: 'subscription-change-plan',
+            http_status: response.status,
+            data_status: response.data?.data?.status
+        });
         const result = response.data;
     
         const updateREsult = await updateWithCondition({ customer_id: result.data.customer_id }, { cus_pdl_status: result.data.status, final_history: JSON.stringify(result.data), planStartDate: result.data.current_billing_period.starts_at, planEndDate: result.data.current_billing_period.ends_at});
@@ -176,9 +203,12 @@ const postChangePlanHandler = async (req, res, next) => {
         res.status(200).send(wrappSuccessResult(200, result));
     }
     catch(error) {
-        // res.status(500).send(error)
-        console.log('error change plan');
-        // console.log(error)
+        logger.error('Paddle error', {
+            action: 'subscription-change-plan',
+            http_status: error?.response?.status,
+            data: error?.response?.data,
+            message: error?.message
+        });
         return next(error, req, res)
     }
 
@@ -206,6 +236,11 @@ const postSubscriptionCancelHnadler = async (req, res, next) => {
         const planHistory = JSON.parse(completedSubId.planHistory);
        
 
+        logger.info('Paddle request', {
+            action: 'subscription-cancel',
+            endpoint: `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${planHistory.subscription_id}/cancel`,
+            subscription_id: planHistory.subscription_id
+        });
         const response = await axios.post(
             `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${planHistory.subscription_id}/cancel`,
             { "effective_from": "immediately" },
@@ -216,13 +251,23 @@ const postSubscriptionCancelHnadler = async (req, res, next) => {
                 }
             }
         );
+        logger.info('Paddle response', {
+            action: 'subscription-cancel',
+            http_status: response.status,
+            data_status: response.data?.data?.status
+        });
         const result = response.data;
 
         const updateREsult = await updateWithCondition({ customer_id: result.data.customer_id }, { cus_pdl_status: result.data.status, final_history: JSON.stringify(result.data), isActive: false });
 
         res.status(200).send(wrappSuccessResult(200, { message: "subscription status: " + result.data.status, statusCode: 200, status: "success" }));
     } catch (error) {
-
+        logger.error('Paddle error', {
+            action: 'subscription-cancel',
+            http_status: error?.response?.status,
+            data: error?.response?.data,
+            message: error?.message
+        });
         return next(error, req, res)
 
     }
@@ -247,6 +292,11 @@ const postSubscriptionPauseHnadler = async (req, res, next) => {
 
         }
 
+        logger.info('Paddle request', {
+            action: 'subscription-pause',
+            endpoint: `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${completedSubId.sub_pdl_id}/pause`,
+            sub_id: completedSubId.sub_pdl_id
+        });
         const response = await axios.post(
             `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${completedSubId.sub_pdl_id}/pause`,
             { "effective_from": "immediately" }, // next_billing_period
@@ -257,13 +307,23 @@ const postSubscriptionPauseHnadler = async (req, res, next) => {
                 }
             }
         );
+        logger.info('Paddle response', {
+            action: 'subscription-pause',
+            http_status: response.status,
+            data_status: response.data?.data?.status
+        });
         const result = response.data;
 
         const updateREsult = await updateWithCondition({ customer_id: result.data.customer_id }, { cus_pdl_status: result.data.status, final_history: JSON.stringify(result.data), isActive: false });
 
         res.status(200).send(wrappSuccessResult(200, { message: "subscription status: " + result.data.status, statusCode: 200, status: "success" }));
     } catch (error) {
-        // res.status(400).send({ message: error, statusCode: 400, status: "failed" });
+        logger.error('Paddle error', {
+            action: 'subscription-pause',
+            http_status: error?.response?.status,
+            data: error?.response?.data,
+            message: error?.message
+        });
         return next(error, req, res)
 
     }
@@ -288,6 +348,11 @@ const postSubscriptionResumeHnadler = async (req, res, next) => {
 
         }
 
+        logger.info('Paddle request', {
+            action: 'subscription-resume',
+            endpoint: `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${completedSubId.sub_pdl_id}/resume`,
+            sub_id: completedSubId.sub_pdl_id
+        });
         const response = await axios.post(
             `${process.env.PADDLE_SANDBOX_ENDPOINT}/subscriptions/${completedSubId.sub_pdl_id}/resume`,
             { "effective_from": "immediately" }, // next_billing_period
@@ -298,14 +363,23 @@ const postSubscriptionResumeHnadler = async (req, res, next) => {
                 }
             }
         );
+        logger.info('Paddle response', {
+            action: 'subscription-resume',
+            http_status: response.status,
+            data_status: response.data?.data?.status
+        });
         const result = response.data;
 
         const updateREsult = await updateWithCondition({ customer_id: result.data.customer_id }, { cus_pdl_status: result.data.status, final_history: JSON.stringify(result.data), isActive: false });
 
         res.status(200).send(wrappSuccessResult(200, { message: "subscription status: " + result.data.status, statusCode: 200, status: "success" }));
     } catch (error) {
-
-        // res.status(400).send({ message: error, statusCode: 400, status: "failed" });
+        logger.error('Paddle error', {
+            action: 'subscription-resume',
+            http_status: error?.response?.status,
+            data: error?.response?.data,
+            message: error?.message
+        });
         return next(error, req, res)
 
     }
@@ -343,6 +417,12 @@ const postCreateTransactionHandler = async (req, res, next) => {
             custom_data
         };
 
+        logger.info('Paddle request', {
+            action: 'transaction-create',
+            endpoint: `${process.env.PADDLE_SANDBOX_ENDPOINT}/transactions`,
+            items_count: Array.isArray(items) ? items.length : 0,
+            collection_mode
+        });
         const response = await axios.post(
             `${process.env.PADDLE_SANDBOX_ENDPOINT}/transactions`,
             transactionData,
@@ -353,7 +433,12 @@ const postCreateTransactionHandler = async (req, res, next) => {
                 }
             }
         );
-
+        logger.info('Paddle response', {
+            action: 'transaction-create',
+            http_status: response.status,
+            data_status: response.data?.data?.status,
+            transaction_id: response.data?.data?.id
+        });
         const transaction = response.data.data;
 
 
@@ -366,7 +451,12 @@ const postCreateTransactionHandler = async (req, res, next) => {
         }));
 
     } catch (error) {
-        console.error('Transaction creation error:', error.response?.data || error.message);
+        logger.error('Paddle error', {
+            action: 'transaction-create',
+            http_status: error?.response?.status,
+            data: error?.response?.data,
+            message: error?.message
+        });
         return next(error, req, res);
     }
 };
