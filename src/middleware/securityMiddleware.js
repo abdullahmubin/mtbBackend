@@ -8,8 +8,17 @@ import logger from '../utils/logger.js';
  * Rate Limiting Configuration
  */
 export const createRateLimiters = () => {
+    // Control rate limiting with environment variable `ENABLE_RATE_LIMIT`.
+    // If `ENABLE_RATE_LIMIT` is set to 'true' -> enable rate limiting.
+    // If `ENABLE_RATE_LIMIT` is explicitly set to 'false' -> disable rate limiting.
+    // If not set, fall back to legacy behavior: enable only in production unless RATE_LIMIT_DISABLED is 'true'.
     const isProd = process.env.NODE_ENV === 'production';
-    const disabled = process.env.RATE_LIMIT_DISABLED === 'true' || !isProd;
+    const enableRateLimitEnv = process.env.ENABLE_RATE_LIMIT;
+    const enableRateLimit = enableRateLimitEnv === 'true';
+
+    const disabled = (enableRateLimitEnv !== undefined)
+        ? !enableRateLimit
+        : (process.env.RATE_LIMIT_DISABLED === 'true' || !isProd);
 
     // No-op middleware used when rate limits are disabled
     const noop = (req, res, next) => next();
