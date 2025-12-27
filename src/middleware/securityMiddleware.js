@@ -21,7 +21,7 @@ export const createRateLimiters = () => {
 
     const disabled = (enableRateLimitEnv !== undefined)
         ? !enableRateLimit
-        : (process.env.RATE_LIMIT_DISABLED === 'true' || !isProd);
+        : (process.env.RATE_LIMIT_DISABLED === 'true'); // || isProd
 
     // Emit runtime info so deploy environments (like Dokploy) show the effective setting.
     const envDebug = {
