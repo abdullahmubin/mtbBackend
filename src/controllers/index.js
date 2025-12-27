@@ -12,6 +12,7 @@ import configureActivityLogController from './activityLogController.js';
 import configurePlanSettings from './planSettingsController.js';
 import configureEmailTemplates from './emailTemplatesController.js';
 import configureResendController from './resendController.js';
+import configureDebug from './debugController.js';
 import emailRoutes from '../routes/emailRoutes.js';
 import { collections } from '../models/registry.js';
 import { makeController } from './genericController.js';
@@ -61,6 +62,8 @@ const configure = (app) => {
     configureEmailTemplates(app);
     // Resend / email debug endpoints
     configureResendController(app);
+    // Debug endpoints (test notifications, etc.)
+    configureDebug(app);
     app.use('/api/email', emailRoutes);
     
     // Tenant-specific routes

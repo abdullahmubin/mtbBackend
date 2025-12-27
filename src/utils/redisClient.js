@@ -186,5 +186,16 @@ process.on('SIGTERM', async () => {
     await redisManager.disconnect();
 });
 
-// Export the client - may be null if Redis is disabled or connection failed
-export default redisManager.getClient();
+// Export a proxy that forwards property/method access to the current Redis client instance.
+// This avoids exporting a null snapshot before the async initializer has created the client.
+const redisProxy = new Proxy({}, {
+    get(_, prop) {
+        const client = redisManager.getClient();
+        if (prop === 'isReady') return !!(client && client.isReady);
+        if (!client) return undefined;
+        const value = client[prop];
+        return (typeof value === 'function') ? value.bind(client) : value;
+    }
+});
+
+export default redisProxy;
