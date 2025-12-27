@@ -12,13 +12,30 @@ export const createRateLimiters = () => {
     // If `ENABLE_RATE_LIMIT` is set to 'true' -> enable rate limiting.
     // If `ENABLE_RATE_LIMIT` is explicitly set to 'false' -> disable rate limiting.
     // If not set, fall back to legacy behavior: enable only in production unless RATE_LIMIT_DISABLED is 'true'.
+
     const isProd = process.env.NODE_ENV === 'production';
-    const enableRateLimitEnv = process.env.ENABLE_RATE_LIMIT;
+
+    // Accept the correctly spelled `ENABLE_RATE_LIMIT` or a common typo `ENABLE_REATE_LIMIT`.
+    const enableRateLimitEnv = process.env.ENABLE_RATE_LIMIT ?? process.env.ENABLE_REATE_LIMIT;
     const enableRateLimit = enableRateLimitEnv === 'true';
 
     const disabled = (enableRateLimitEnv !== undefined)
         ? !enableRateLimit
         : (process.env.RATE_LIMIT_DISABLED === 'true' || !isProd);
+
+    // Emit runtime info so deploy environments (like Dokploy) show the effective setting.
+    const envDebug = {
+        ENABLE_RATE_LIMIT: process.env.ENABLE_RATE_LIMIT,
+        ENABLE_REATE_LIMIT: process.env.ENABLE_REATE_LIMIT,
+        RATE_LIMIT_DISABLED: process.env.RATE_LIMIT_DISABLED,
+        NODE_ENV: process.env.NODE_ENV
+    };
+    const enabledState = disabled ? 'DISABLED' : 'ENABLED';
+    if (logger && typeof logger.info === 'function') {
+        logger.info(`Rate limiting is ${enabledState}. env: ${JSON.stringify(envDebug)}`);
+    }
+    // Also print to stdout so simple container logs capture it regardless of logger config
+    console.info(`Rate limiting is ${enabledState}. env: ${JSON.stringify(envDebug)}`);
 
     // No-op middleware used when rate limits are disabled
     const noop = (req, res, next) => next();
